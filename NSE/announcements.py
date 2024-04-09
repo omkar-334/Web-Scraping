@@ -97,3 +97,18 @@ def get_Nsme(self):
     df = df.apply(lambda col: [v[1] if not v[0] else v[0] for v in  col])
     df = df.drop_duplicates()
     return df
+
+def get_data(self):
+    driver = self.create_driver()
+    driver.get('https://www.nseindia.com/reports/fii-dii')
+
+    driver.implicitly_wait(10)
+    table = driver.find_element(By.XPATH, '//table').get_attribute('outerHTML')
+    driver.quit()
+
+    df = pd.read_html(StringIO(str(table)))[0]
+    df.columns = ['Category','Report_Date', 'Buy_Value', 'Sell_Value', 'Net_Value']
+    df.Category = df.Category.str.replace('*','').str.strip()
+    df['Report_Date'] = pd.to_datetime(df['Report_Date'], format="%d-%b-%Y").dt.date
+    df = df[['Report_Date', 'Category', 'Buy_Value', 'Sell_Value', 'Net_Value']]
+    return df
