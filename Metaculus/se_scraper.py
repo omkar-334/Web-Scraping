@@ -23,7 +23,7 @@ def create_driver():
     driver.execute_cdp_cmd('Network.setUserAgentOverride', {"userAgent": 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/96.0.4664.110 Safari/537.36 Edg/122.0.2365.92'})
     return driver
 
-def predict(url):
+def se_predict(url):
     driver = create_driver()
     driver.get(url)
     wait = WebDriverWait(driver,20)
@@ -73,7 +73,7 @@ def predict(url):
             out2 = None
 
         driver.close() 
-        print(type, "sucess")
+        print(type, "success")
         return out1, out2
 
     except:
@@ -81,11 +81,26 @@ def predict(url):
         return None, None
     # rcfp = wait.until(EC.presence_of_element_located((By .XPATH, '//div[@class="content prediction-section-resolution-criteria"]'))).get_attribute('innerText')
     # bginfo = wait.until(EC.presence_of_element_located((By.XPATH, '//div[@class="content font-sans [&>:first-child]:mt-0 [&>:last-child]:mb-0"]'))).get_attribute('innerText')
+    
+def get_questions(category, status):
+    jsonlist = []
+    url = f'https://www.metaculus.com/api2/questions/?limit=100&offset=0&categories={category}&status={status}'
 
-def get_out(url):
+    while url:
+        response = requests.get(url).json()
+        jsonlist.extend(response['results'])
+        url = response['next']
+    
+    print('json done')
+    df = pd.DataFrame(jsonlist)[['url','page_url', 'title', 'close_time']]
+    df['page_url'] = 'https://www.metaculus.com' + df['page_url']
+    
+    return df
+    
+
+def get_info(url):
     try:
         x = requests.get(url).json()
-        time.sleep(5)
         return x.get('description'), x.get('resolution_criteria'), x.get('fine_print')
     except:
         return None, None, None
@@ -96,26 +111,21 @@ def df_to_json(df):
     else:
         return df.to_json(orient='records')
     
-def scrape(topic : str, status : str):
+def scrape(category : str, status : str):
     '''status - open, resolved, active, upcoming'''
+    df = get_questions(category, status)
     
-    jsonlist = []
-    url = f'https://www.metaculus.com/api2/questions/?limit=100&offset=0&topic={topic}&status={status}'
-
-    while url:
-        response = requests.get(url).json()
-        jsonlist.extend(response['results'])
-        url = response['next']
-    
-    print('json done')
-    df = pd.DataFrame(jsonlist)[['url','page_url', 'title', 'close_time']]
-    df['page_url'] = 'https://www.metaculus.com' + df['page_url']
-    df['desc'], df['resc'], df['fp'] = zip(*df['url'].apply(get_out))
+    df['desc'], df['resc'], df['fp'] = zip(*df['url'].apply(get_info))
     print('Getout done')
     
-    df['pred1'], df['pred2'] = zip(*df['page_url'].apply(predict))
+    df['pred1'], df['pred2'] = zip(*df['page_url'].apply(se_predict))
     # df = df.dropna(subset=['pred1'])
 
-    df.to_csv(f"{topic}_{status}.csv")
-    df.to_excel(f"{topic}_{status}.xlsx")
+    df.to_csv(f"{category}_{status}.csv")
+    df.to_excel(f"{category}_{status}.xlsx")
     return df
+
+
+def repeat_check(df, alldf):
+    newdf = df[~df['url'].isin(alldf['url'])]
+    return newdf
