@@ -7,6 +7,7 @@ from langchain_openai import ChatOpenAI
 from pydantic import BaseModel
 
 load_dotenv()
+DOWNLOAD_PROMPT = "You are given a website which has tabular data. Your task is to analyze the website and identify if it has any download/export option for the tabular data. If it has, then you need to provide the steps to download the data. You have to return either the download link or the download element locators. If download links are available, click on them and return the link address"
 
 
 #  3 options
